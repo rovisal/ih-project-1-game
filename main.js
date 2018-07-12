@@ -1,6 +1,7 @@
 var step  = 1;
 var img_pos = 0,
 img_speed = 15;
+
 var floor = [
   [-2254,559.58 ],[-2221.33,562.71 ],[-2111.774,562.71 ],[-1976.55,559.58 ],[-1928.972,562.71 ],[-1863.864,559.58 ],[-1840.701,562.71 ],[-1758.69,527.652 ],[-1714.241,527.652 ],[-1609.693,527.652 ],[-1585.904,531.408 ],[-1548.342,527.652 ],[-1513.91,531.408 ],[-1469.461,527.652 ],[-1421.257,539.547 ],[-1388.077,555.824 ],[-1351.767,560.206 ],[-1319.213,551.442 ],[-1298.554,527.652 ],[-1167.086,527.652 ],[-1167.086,510.749 ],[-1133.906,510.749 ],[-1133.906,494.472 ],[-1071.303,497.603 ],[-1071.303,466.927 ],[-946.096,466.927 ],[-720.097,466.927 ],[-720.097,426.861 ],[-581.117,426.861 ],[-560.458,435.625 ],[-480.951,396 ]
 ]
@@ -30,31 +31,43 @@ function Gameboard() {
   // Add motobugs
     // Group 1
   // for (var i = 0; i<1; i++) {
-  var motobug = new Motobug(720, 430, this.ctx);
+  var motobug = new Motobug(850, 430, this.ctx);
   this.myMotobugs.push(motobug);
   motobug.draw(this.ctx);
   // }
     // Group 2
-  var motobug = new Motobug(1500, 380, this.ctx);
+  var motobug = new Motobug(1700, 380, this.ctx);
   this.myMotobugs.push(motobug);
   motobug.draw(this.ctx);
   // Rings
   this.rings = [];
   // Add Rings
   for (var i = 0; i<3; i++) {
-    var ring = new Rings(530 + i*35, 433, this.ctx);
+    var ring = new Rings(550 + i*35, 433, this.ctx);
 		this.rings.push(ring);
 		ring.draw(this.ctx);
+  }
+  this.looseRings = () => {
+    for (var i = 0; i < this.sonic.healthRings; i++) {
+      var ring = new Rings(550 - i*35, 433, this.ctx);
+      this.rings.push(ring);
+      ring.draw(this.ctx);
+    } 
   }
   for (var i = 0; i<6; i++) {
     var ring = new Rings(650, 330 - i*30, this.ctx);
 		this.rings.push(ring);
 		ring.draw(this.ctx);
   }
-  this.drawRings = function() {
+  this.drawScoreRings = function() {
     this.ctx.font = '20px serif';
     this.ctx.fillStyle = 'white';
-    this.ctx.fillText('Rings: ' + this.sonic.health, 20, 50);
+    this.ctx.fillText('Rings: ' + this.sonic.healthRings, 20, 50);
+  }
+  this.drawScoreScore = function() {
+    this.ctx.font = '20px serif';
+    this.ctx.fillStyle = 'white';
+    this.ctx.fillText('Score: ' + this.sonic.score, 20, 90);
   }
   //Update with setInterval
 	setInterval(()=>{
@@ -65,18 +78,26 @@ function Gameboard() {
 }
 
 Gameboard.prototype.testCrashEnemies = function() {
+  var soundCoin = document.getElementById('sound-coinloss');
   for (i = 0; i < this.enemies.length; i++) {
     for (j = 0; j < this.enemies[i].length; j++) {
       if (this.sonic.crashWith(this.enemies[i][j]) &&
       !(["jright","jump","jleft"].includes(this.sonic.sonic_draw_status)) ) {
-        
-        this.sonic.health -= this.enemies[i][j].strength;
-        this.sonic.score += 100;
+        console.log("Crash Sonic and enemy");
+        this.looseRings();
+        this.sonic.healthRings = 0;
         this.sonic.sonic_draw_status = 'hurt';
-        console.log("Sonic health is now: " + this.sonic.health);
+        var soundFlag = true;
+        if (soundFlag) {
+          soundCoin.currentTime = 0;
+          soundCoin.play();
+          soundCoinFlag = false;
+        }
+        console.log("Sonic health is now: " + this.sonic.healthRings);
       } else if (this.sonic.crashWith(this.enemies[i][j])){
         console.log("The enermy is killed");
         this.enemies[i].splice([j], [j]+1);
+        this.sonic.score += 100;
       }
       this.sonic_draw_status = 'right';
     }
@@ -87,7 +108,7 @@ Gameboard.prototype.testCrashRings = function() {
     if (this.sonic.crashWith(this.rings[i])) {
       console.log("There is crash between Sonic and a ring");
       console.log(this.rings[i]);
-      this.sonic.health += 5;
+      this.sonic.healthRings += 1;
       this.rings.splice(i, 1);
     }
   }
@@ -95,9 +116,6 @@ Gameboard.prototype.testCrashRings = function() {
 
 
 Gameboard.prototype.updateGameBoard =  function() {
-  this.ctx.font = '50px serif';
-  this.ctx.fillStyle = 'white';
-  this.ctx.fillText('Rings: ' + this.sonic.health, 350, 50);
   // Check if there is a crash with motobugs
   this.ctx.clearRect(0, 0, this.width, this.height);
   this.testCrashEnemies();
@@ -125,7 +143,8 @@ Gameboard.prototype.updateGameBoard =  function() {
       break;
   }
   //Displays
-  this.drawRings();
+  this.drawScoreRings();
+  this.drawScoreScore();
 
   //Update myMotobugs
   this.myMotobugs.forEach((motobug) => { motobug.draw(this.ctx); })
@@ -216,7 +235,7 @@ function Sonic(ctx) {
   this.ctx = ctx;
   this.speed = 0.1;
   // Sonic health
-  this.health = 0;
+  this.healthRings = 0;
   this.score = 0;
   // Images right
   this.sonic_img_right = [new Image(),new Image(),new Image()];
@@ -364,7 +383,8 @@ Sonic.prototype.drawHurt = function() {
 function startGame() {
   var myBoard = new Gameboard();
   myBoard.draw();
-  
+  var soundJump = document.getElementById('sound-jump');
+
   // var key_state = (e.type == "keydown")?true:false;
   document.onkeydown = (e) => {
     setInterval(function() {
@@ -376,6 +396,12 @@ function startGame() {
       case 88: // Jump
         jump = true;
         myBoard.sonic.sonic_draw_status = 'jump';
+        var soundFlag = true;
+        if (soundFlag) {
+          soundJump.currentTime = 0;
+          soundJump.play();
+          soundJumpFlag = false;
+        }
         break;
       case 37: // Move Left
         dirleft = true;
@@ -409,5 +435,7 @@ function startGame() {
 window.onload = function() {
   document.getElementById("start-button").onclick = function() {
     startGame();
+    var bgm = document.getElementById('bgm');
+    bgm.play();
   };
 };
